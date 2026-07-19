@@ -42,10 +42,18 @@ public class GoofyConfig {
     public static void load() {
         try {
             if (Files.exists(CONFIG_PATH)) {
-                INSTANCE = GSON.fromJson(
-                        Files.readString(CONFIG_PATH),
-                        GoofyConfig.class
-                );
+                String json = Files.readString(CONFIG_PATH);
+                GoofyConfig parsed = null;
+                if (!json.isBlank()) {
+                    parsed = GSON.fromJson(json, GoofyConfig.class);
+                }
+                if (parsed == null) {
+                    // empty, "null", or otherwise didn't produce an object
+                    INSTANCE = new GoofyConfig();
+                    save();
+                } else {
+                    INSTANCE = parsed;
+                }
             } else {
                 INSTANCE = new GoofyConfig();
                 save();
@@ -53,6 +61,7 @@ public class GoofyConfig {
         } catch (Exception e) {
             e.printStackTrace();
             INSTANCE = new GoofyConfig();
+            save(); // <-- this was missing; corrupted file now gets overwritten
         }
     }
 
