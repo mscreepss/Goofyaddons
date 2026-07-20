@@ -50,7 +50,6 @@ public class GoofyConfig {
                     parsed = GSON.fromJson(json, GoofyConfig.class);
                 }
                 if (parsed == null) {
-                    // empty, "null", or otherwise didn't produce an object
                     INSTANCE = new GoofyConfig();
                     save();
                 } else {
@@ -63,7 +62,7 @@ public class GoofyConfig {
         } catch (Exception e) {
             e.printStackTrace();
             INSTANCE = new GoofyConfig();
-            save(); // <-- this was missing; corrupted file now gets overwritten
+            save();
         }
     }
 
