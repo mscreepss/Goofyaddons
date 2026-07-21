@@ -15,14 +15,18 @@ public class Task {
         REPLACE_SELL
     }
 
+    public boolean instaSell = false;
+    public boolean instaBuy = false;
     private List<BookPool> bookPool = new ArrayList<>();
     private Book book;
     private int amountToOrder;
     private BookState bookState;
 
 
-    public Task(Book book) {
+    public Task(Book book, boolean instaBuy, boolean instaSell) {
         this.book = book;
+        this.instaBuy = instaBuy;
+        this.instaSell = instaSell;
         amountToOrder = book.getQtyAmount(book.level());
     }
 
