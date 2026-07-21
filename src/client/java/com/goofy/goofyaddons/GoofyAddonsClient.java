@@ -13,8 +13,6 @@ import net.minecraft.client.Minecraft;
 import org.lwjgl.glfw.GLFW;
 
 public class GoofyAddonsClient implements ClientModInitializer {
-    Book book = new Book("ENCHANTMENT_ULTIMATE_WISE", 1, 5, "Ultimate Wise");
-    Task task;
 
     @Override
     public void onInitializeClient() {
@@ -35,15 +33,6 @@ public class GoofyAddonsClient implements ClientModInitializer {
             if (keyDown && client.screen == null) FeatureManager.INSTANCE.start("BazaarFlipper");
             if (keyDown1 && client.screen == null) FeatureManager.INSTANCE.stop();
 
-            if (InputConstants.isKeyDown(minecraft.getWindow(), GLFW.GLFW_KEY_B)) {
-                task = new Task(book);
-            }
-
-            if (InputConstants.isKeyDown(minecraft.getWindow(), GLFW.GLFW_KEY_L)) {
-                int num = task.assignBook(book, 1, 0, 5);
-                System.out.println(num);
-                System.out.println(task.getBookPool().size());
-            }
 
         });
     }

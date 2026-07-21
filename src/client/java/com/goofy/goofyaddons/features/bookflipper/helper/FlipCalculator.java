@@ -79,7 +79,6 @@ public class FlipCalculator {
             boolean instaBuy = false;
             boolean instaSell = false;
 
-
             if (((buyData.sellPrice() - buyData.buyPrice()) / buyData.buyPrice()) * 100.0 <= book.instaBuyPercentage()) instaBuy = true;
             if (((sellData.sellPrice() - sellData.buyPrice()) / sellData.buyPrice()) * 100.0 <= book.instaSellPercentage()) instaSell = true;
 
