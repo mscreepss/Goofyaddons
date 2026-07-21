@@ -76,10 +76,17 @@ public class FlipCalculator {
 
             if (buyData == null || sellData == null) continue;
 
+            boolean instaBuy = false;
+            boolean instaSell = false;
+
+
+            if (((buyData.sellPrice() - buyData.buyPrice()) / buyData.buyPrice()) * 100.0 <= book.instaBuyPercentage()) instaBuy = true;
+            if (((sellData.sellPrice() - sellData.buyPrice()) / sellData.buyPrice()) * 100.0 <= book.instaSellPercentage()) instaSell = true;
+
             int qty = book.getQtyAmount(book.level());
 
-            double cost = buyData.sellPrice() * qty;
-            double revenue = sellData.buyPrice();
+            double cost = instaBuy ? buyData.buyPrice() * qty : buyData.sellPrice() * qty;
+            double revenue = instaSell ? sellData.sellPrice() : sellData.buyPrice();
 
             double profit = revenue - cost;
 
@@ -87,14 +94,7 @@ public class FlipCalculator {
 
             double score = profit * Math.log10(sellData.sellVolume() + 1) / Math.sqrt(cost);
 
-            boolean instaBuy = false;
-            boolean instaSell = false;
-
-            if (((buyData.sellPrice() - buyData.buyPrice()) / buyData.buyPrice()) * 100.0 <= book.instaBuyPercentage()) instaBuy = true;
-            if (((sellData.sellPrice() - sellData.buyPrice()) / sellData.buyPrice()) * 100.0 <= book.instaSellPercentage()) instaSell = true;
-
             flipItemsList.add(new FlipItem(book, cost, score, instaBuy, instaSell));
-
         }
 
         flipItemsList.sort(Comparator.comparingDouble(FlipItem::score).reversed());
