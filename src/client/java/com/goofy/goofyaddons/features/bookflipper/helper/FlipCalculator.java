@@ -79,8 +79,8 @@ public class FlipCalculator {
             boolean instaBuy = false;
             boolean instaSell = false;
 
-            if (((buyData.sellPrice() - buyData.buyPrice()) / buyData.buyPrice()) * 100.0 <= book.instaBuyPercentage()) instaBuy = true;
-            if (((sellData.sellPrice() - sellData.buyPrice()) / sellData.buyPrice()) * 100.0 <= book.instaSellPercentage()) instaSell = true;
+            if (((buyData.buyPrice() - buyData.sellPrice()) / buyData.buyPrice()) * 100.0 <= book.instaBuyPercentage()) instaBuy = true;
+            if (((sellData.buyPrice() - sellData.sellPrice()) / sellData.buyPrice()) * 100.0 <= book.instaSellPercentage()) instaSell = true;
 
             int qty = book.getQtyAmount(book.level());
 
@@ -88,7 +88,6 @@ public class FlipCalculator {
             double revenue = instaSell ? sellData.sellPrice() : sellData.buyPrice();
 
             double profit = revenue - cost;
-
             if (profit <= 0 || cost <= 0) continue;
 
             double score = profit * Math.log10(sellData.sellVolume() + 1) / Math.sqrt(cost);

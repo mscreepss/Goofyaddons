@@ -1,5 +1,6 @@
 package com.goofy.goofyaddons.features.bookflipper;
 
+import com.goofy.goofyaddons.config.GoofyConfig;
 import com.goofy.goofyaddons.features.Feature;
 import com.goofy.goofyaddons.features.bookflipper.helper.FlipCalculator;
 import com.goofy.goofyaddons.features.bookflipper.helper.FlipItem;
@@ -7,9 +8,11 @@ import com.goofy.goofyaddons.features.bookflipper.helper.Task;
 import com.goofy.goofyaddons.utils.ChatUtils;
 import com.goofy.goofyaddons.utils.Clock;
 import com.goofy.goofyaddons.utils.ScoreboardUtils;
+import net.minecraft.client.Minecraft;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.SplittableRandom;
 
 public class NewBazaarFlipper implements Feature {
     private enum State{
@@ -25,10 +28,12 @@ public class NewBazaarFlipper implements Feature {
     private Clock clock = new Clock();
     private FlipCalculator flipCalculator = new FlipCalculator();
     private ScoreboardUtils scoreboardUtils = new ScoreboardUtils();
+    private SplittableRandom splittableRandom = new SplittableRandom();
     private boolean running = false;
     private List<FlipItem> flipItemList = new ArrayList<>();
     private boolean notEnoughCash  = false;
     private boolean isStartUpCheckCompleted = false;
+    private Minecraft minecraft = Minecraft.getInstance();
 
     // Tasklist will contain main task meanwhile taskInMemoryList will store duplicate task that will be used later
     private List<Task> taskList = new ArrayList<>();
@@ -37,17 +42,19 @@ public class NewBazaarFlipper implements Feature {
 
     @Override
     public String name() {
-        return "";
+        return "BazaarFlipper";
     }
 
     @Override
     public void stop() {
+        state = State.START;
+        running = false;
 
     }
 
     @Override
     public void start() {
-
+        running = true;
     }
 
     @Override
@@ -78,6 +85,9 @@ public class NewBazaarFlipper implements Feature {
             }
 
             case STARTUP_CHECK -> {
+                if (fire("", true)) {
+                    minecraft.player.connection.sendCommand("Ec");
+                }
 
             }
 
@@ -85,14 +95,26 @@ public class NewBazaarFlipper implements Feature {
 
     }
 
+    private boolean containerNameCheck(String name) {
+        if (minecraft.player == null || minecraft.screen == null) return false;
+        return minecraft.screen.getTitle().getString().toLowerCase().contains(name);
+    }
+
+    private boolean fire(String name, boolean containerCheck) {
+        clock.start(randomizer());
+        if (!clock.shouldFire()) return false;
+        return containerCheck ? minecraft.screen == null : containerNameCheck(name);
+    }
+
+
     private void lastStateCheck() {
         if (state == lastState) return;
-            clock.stop();
-            lastState = state;
-            ChatUtils.clientMessage("State switched from: " + lastState + " to: " + state);
-            if (state != State.FETCHING) return;
-            flipItemList.clear();
-            flipCalculator.Refresh();
+        ChatUtils.clientMessage("State switched from: " + lastState + " to: " + state);
+        clock.stop();
+        lastState = state;
+        if (state != State.FETCHING) return;
+        flipItemList.clear();
+        flipCalculator.Refresh();
     }
 
     private void processData() {
@@ -103,12 +125,14 @@ public class NewBazaarFlipper implements Feature {
         if (cost != -1) {
             if (cost > purse) {
                 notEnoughCash = true;
+                state = State.IDLE;
+                return;
             }
         }
 
         for (FlipItem flipItem : flipItemList) {
             if (flipItem.totalCost() > purse) continue;
-            if (taskList.stream().anyMatch(task -> task.getBook().equals(flipItem.book()))) return;
+            if (taskList.stream().anyMatch(task -> task.getBook().equals(flipItem.book()))) continue;
 
             // If we have any books in the memory list we will just move it out of there
             if (taskInMemoryList.stream().anyMatch(task -> task.getBook().equals(flipItem.book()))) {
@@ -120,9 +144,11 @@ public class NewBazaarFlipper implements Feature {
             }
             taskList.add(new Task(flipItem.book(), flipItem.instaBuy(), flipItem.instaSell()));
         }
-
-        state = isStartUpCheckCompleted ? State.IDLE : State.FETCHING;
+        state = isStartUpCheckCompleted ? State.IDLE : State.STARTUP_CHECK;
     }
 
-
+    private int randomizer() {
+        int result = splittableRandom.nextInt(GoofyConfig.INSTANCE.minActionDelay, GoofyConfig.INSTANCE.maxActionDelay);
+        return result > 50 ? result : 500;
+    }
 }
