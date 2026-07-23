@@ -4,8 +4,6 @@ import com.goofy.goofyaddons.config.GoofyConfig;
 import com.goofy.goofyaddons.event.ChatHook;
 import com.goofy.goofyaddons.failsafes.FailsafeManager;
 import com.goofy.goofyaddons.features.FeatureManager;
-import com.goofy.goofyaddons.features.bookflipper.helper.Book;
-import com.goofy.goofyaddons.features.bookflipper.helper.Task;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -32,7 +30,6 @@ public class GoofyAddonsClient implements ClientModInitializer {
 
             if (keyDown && client.screen == null) FeatureManager.INSTANCE.start("BazaarFlipper");
             if (keyDown1 && client.screen == null) FeatureManager.INSTANCE.stop();
-
 
         });
     }

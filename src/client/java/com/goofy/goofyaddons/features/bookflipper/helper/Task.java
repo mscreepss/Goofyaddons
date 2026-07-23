@@ -5,9 +5,11 @@ import java.util.List;
 
 public class Task {
     public enum BookState {
+        BAZAAR_ORDER_CHECK,
         SELECTED,
         IN_BUY_ORDER,
         OUTBID,
+        STORE,
         ANVIL,
         COMBINE,
         SELL,
@@ -18,6 +20,8 @@ public class Task {
     public boolean instaSell = false;
     public boolean instaBuy = false;
     private List<BookPool> bookPool = new ArrayList<>();
+    public boolean storeThanShadowTask;
+    public boolean selectedThanStoreThanBuyOrder;
     private Book book;
     private int amountToOrder;
     private BookState bookState;
@@ -68,7 +72,7 @@ public class Task {
     }
 
     public int getAmountToOrder() {
-        return getAmountToOrder();
+        return amountToOrder;
     }
 
 
