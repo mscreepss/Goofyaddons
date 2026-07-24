@@ -19,12 +19,13 @@ public class Task {
 
     public boolean instaSell = false;
     public boolean instaBuy = false;
-    private List<BookPool> bookPool = new ArrayList<>();
     public boolean storeThanShadowTask;
     public boolean selectedThanStoreThanBuyOrder;
     private Book book;
     private int amountToOrder;
     private BookState bookState;
+    // book location will be represented in integars, 0 = Inventory, 1 = EnderChest, 2 = EnderChestPage2
+    public List<BookList> bookList = new ArrayList<>();
 
 
     public Task(Book book, boolean instaBuy, boolean instaSell) {
@@ -57,18 +58,11 @@ public class Task {
 
         amountToOrder -= totalAmount;
 
-        for (int i = 0; i < totalAmount; i++) {
-            bookPool.add(new BookPool(level, location));
+        for (int i = 0; i < amountOfBook; i++) {
+            bookList.add(new BookList(book, level, location));
         }
+
         return 0;
-    }
-
-    public List<BookPool> getBookPool() {
-        return bookPool;
-    }
-
-    public void setBookPool(List<BookPool> list) {
-        this.bookPool = list;
     }
 
     public int getAmountToOrder() {
@@ -79,22 +73,6 @@ public class Task {
     private int parseBookLevel(int level) {
         if (level == book.level()) return 1;
         return 1 << (level - book.level());
-    }
-
-
-    // book location will be represented in integars, 0 = Inventory, 1 = EnderChest, 2 = EnderChestPage2
-    public class BookPool {
-        int level;
-        int location;
-
-        private BookPool(int level, int location) {
-            this.level = level;
-            this.location = location;
-        }
-
-        public void setLocation(int location) {
-            this.location = location;
-        }
     }
 
 }

@@ -2,9 +2,7 @@ package com.goofy.goofyaddons.features.bookflipper;
 
 import com.goofy.goofyaddons.config.GoofyConfig;
 import com.goofy.goofyaddons.features.Feature;
-import com.goofy.goofyaddons.features.bookflipper.helper.FlipCalculator;
-import com.goofy.goofyaddons.features.bookflipper.helper.FlipItem;
-import com.goofy.goofyaddons.features.bookflipper.helper.Task;
+import com.goofy.goofyaddons.features.bookflipper.helper.*;
 import com.goofy.goofyaddons.utils.ChatUtils;
 import com.goofy.goofyaddons.utils.Clock;
 import com.goofy.goofyaddons.utils.InventoryScanner;
@@ -33,14 +31,14 @@ public class NewBazaarFlipper implements Feature {
     private boolean running = false;
     private List<FlipItem> flipItemList = new ArrayList<>();
     private boolean notEnoughCash  = false;
+    private boolean needToStoreExcessBook = false;
     private boolean isStartUpCheckCompleted = false;
     private Minecraft minecraft = Minecraft.getInstance();
     private boolean checkedFirstPage = false;
     // 0 will represent inventory, 1 will present first page, 2 will present second page
+    private List<BookList> bookLists = new ArrayList<>();
     private HashMap<Integer, Integer> emptyInventorySlots = new HashMap<>();
-    // Tasklist will contain main task meanwhile taskInMemoryList will store duplicate task that will be used later
     private List<Task> taskList = new ArrayList<>();
-    private List<Task> taskInMemoryList = new ArrayList<>();
 
 
     @Override
@@ -113,7 +111,7 @@ public class NewBazaarFlipper implements Feature {
                             }
 
                             if (!taskList.stream().filter(task1 -> task.getBook().equals(task.getBook())).skip(1).findAny().isPresent()) {
-                                taskInMemoryList.add(new Task(task.getBook(), false, false));
+                                handleBookList(task.getBook(), checkedFirstPage ? 2 : 1, level, 1);
                                 counter.add(i);
                             }
                         }
@@ -138,9 +136,7 @@ public class NewBazaarFlipper implements Feature {
                                 }
 
                                 if (!taskList.stream().filter(task1 -> task.getBook().equals(task.getBook())).skip(1).findAny().isPresent()) {
-                                    taskList.add(new Task(task.getBook(), false, false));
-                                    taskList.getFirst().storeThanShadowTask = true;
-                                    taskList.getFirst().setBookState(Task.BookState.STORE);
+                                    handleBookList(task.getBook(), 0, level, 1);
                                     counter.add(i);
                                 }
                             }
@@ -225,16 +221,19 @@ public class NewBazaarFlipper implements Feature {
         for (FlipItem flipItem : flipItemList) {
             if (flipItem.totalCost() > purse) continue;
             if (taskList.stream().anyMatch(task -> task.getBook().equals(flipItem.book()))) continue;
-
-            // If we have any books in the memory list we will just move it out of there
-            if (taskInMemoryList.stream().anyMatch(task -> task.getBook().equals(flipItem.book()))) {
-                taskInMemoryList.stream().filter(task -> task.getBook().equals(flipItem.book())).findFirst().ifPresent(item -> {
-                    taskList.add(item);
-                    taskInMemoryList.remove(item);
-                });
-                continue;
-            }
             taskList.add(new Task(flipItem.book(), flipItem.instaBuy(), flipItem.instaSell()));
+
+            Iterator<BookList> iterator = bookLists.iterator();
+
+            while (iterator.hasNext()) {
+                BookList bookList = iterator.next();
+
+                if (!bookList.book.equals(flipItem.book())) continue;
+
+                int attempt = taskList.getLast().assignBook(bookList.book, bookList.level, bookList.location, 1);
+
+                if (attempt != 1) iterator.remove();
+            }
         }
         state = isStartUpCheckCompleted ? State.IDLE : State.STARTUP_CHECK;
     }
@@ -246,5 +245,12 @@ public class NewBazaarFlipper implements Feature {
 
     private Task taskInState(Task.BookState bookState) {
         return taskList.stream().filter(task -> task.getBookState() == bookState).findFirst().orElse(null);
+    }
+
+    private void handleBookList(Book book, int location, int level, int amount) {
+        if (location == 0) needToStoreExcessBook = true;
+        for (int i = 0; i < amount; i++) {
+            bookLists.add(new BookList(book, level, location));
+        }
     }
 }
