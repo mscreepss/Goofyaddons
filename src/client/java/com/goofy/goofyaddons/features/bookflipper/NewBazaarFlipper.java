@@ -48,7 +48,10 @@ public class NewBazaarFlipper implements Feature {
 
     @Override
     public void stop() {
+        checkedFirstPage = false;
+        isStartUpCheckCompleted = false;
         state = State.START;
+        taskList.clear();
         running = false;
 
     }
@@ -86,11 +89,13 @@ public class NewBazaarFlipper implements Feature {
             }
 
             case STARTUP_CHECK -> {
-                if (fire("", true)) {
+                if (minecraft.screen == null) clock.start(randomizer());
+                if (minecraft.screen == null && clock.shouldFire()) {
                     minecraft.player.connection.sendCommand(checkedFirstPage ? GoofyConfig.INSTANCE.secondPage : GoofyConfig.INSTANCE.firstPage);
                 }
 
-                if (fire("enderchest", false) || fire("jumbo backpack", false) || fire("greater backpack", false)) {
+                if (containerNameCheck("Ender Chest") || containerNameCheck("Jumbo Backpack") || containerNameCheck("Greater Backpack")) clock.start(randomizer());
+                if (containerNameCheck("Ender Chest") || containerNameCheck("Jumbo Backpack") || containerNameCheck("Greater Backpack") && clock.shouldFire()) {
                     emptyInventorySlots.put(checkedFirstPage ? 2 : 1, inventoryScanner.getEmptyContainerSlots());
                     Set<Integer> counter = new HashSet<>();
                     // in here we check both pages
@@ -103,10 +108,10 @@ public class NewBazaarFlipper implements Feature {
                             int level = inventoryScanner.getLevel(i);
 
                             int attempt = task.assignBook(task.getBook(), level, checkedFirstPage ? 2 : 1, 1);
+                            System.out.println(attempt);
 
-                            if (attempt == 1) {
+                            if (attempt == 0) {
                                 counter.add(i);
-                                task.setBookState(Task.BookState.BAZAAR_ORDER_CHECK);
                                 continue;
                             }
 
@@ -120,6 +125,7 @@ public class NewBazaarFlipper implements Feature {
                     if (!checkedFirstPage) {
                         // in here we check inventory
                         for (Task task : taskList) {
+                            task.setBookState(Task.BookState.BAZAAR_ORDER_CHECK);
                             List<Integer> slots = inventoryScanner.matchingBookInInventory(task.getBook());
                             if (slots.isEmpty()) continue;
                             for (Integer i : slots) {
@@ -129,13 +135,13 @@ public class NewBazaarFlipper implements Feature {
 
                                 int attempt = task.assignBook(task.getBook(), level, 0, 1);
 
-                                if (attempt == 1) {
+                                if (attempt == 0) {
+                                    task.selectedThenStoreThenBuyOrder = true;
                                     counter.add(i);
-                                    task.setBookState(Task.BookState.BAZAAR_ORDER_CHECK);
                                     continue;
                                 }
 
-                                if (!taskList.stream().filter(task1 -> task.getBook().equals(task.getBook())).skip(1).findAny().isPresent()) {
+                                if (!taskList.stream().skip(taskList.indexOf(task) + 1).filter(task1 -> task.getBook().equals(task.getBook())).findAny().isPresent()) {
                                     handleBookList(task.getBook(), 0, level, 1);
                                     counter.add(i);
                                 }
@@ -149,7 +155,7 @@ public class NewBazaarFlipper implements Feature {
                     }
 
                     minecraft.player.closeContainer();
-                    state = State.STARTUP_BAZAAR_CHECK;
+                    state = State.IDLE;
                 }
             }
 
@@ -174,19 +180,28 @@ public class NewBazaarFlipper implements Feature {
 
             }
 
+            case IDLE -> {
+            }
+
         }
 
     }
 
     private boolean containerNameCheck(String name) {
-        if (minecraft.player == null || minecraft.screen == null) return false;
-        return minecraft.screen.getTitle().getString().toLowerCase().contains(name);
+         if (minecraft.screen == null) return false;
+        return minecraft.screen.getTitle().toString().contains(name);
     }
 
     private boolean fire(String name, boolean containerCheck) {
-        clock.start(randomizer());
-        if (!clock.shouldFire()) return false;
-        return containerCheck ? minecraft.screen == null : containerNameCheck(name);
+        if (containerCheck && minecraft.screen == null) {
+            clock.start(randomizer());
+            return clock.shouldFire();
+        }
+        if (containerNameCheck(name)) {
+            clock.start(randomizer());
+            return clock.shouldFire();
+        }
+        return false;
     }
 
 
@@ -232,7 +247,7 @@ public class NewBazaarFlipper implements Feature {
 
                 int attempt = taskList.getLast().assignBook(bookList.book, bookList.level, bookList.location, 1);
 
-                if (attempt != 1) iterator.remove();
+                if (attempt != -1) iterator.remove();
             }
         }
         state = isStartUpCheckCompleted ? State.IDLE : State.STARTUP_CHECK;

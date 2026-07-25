@@ -19,8 +19,7 @@ public class Task {
 
     public boolean instaSell = false;
     public boolean instaBuy = false;
-    public boolean storeThanShadowTask;
-    public boolean selectedThanStoreThanBuyOrder;
+    public boolean selectedThenStoreThenBuyOrder;
     private Book book;
     private int amountToOrder;
     private BookState bookState;
