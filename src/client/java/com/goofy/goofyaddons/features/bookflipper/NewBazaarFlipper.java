@@ -1,6 +1,7 @@
 package com.goofy.goofyaddons.features.bookflipper;
 
 import com.goofy.goofyaddons.config.GoofyConfig;
+import com.goofy.goofyaddons.event.ChatHook;
 import com.goofy.goofyaddons.features.Feature;
 import com.goofy.goofyaddons.features.bookflipper.helper.*;
 import com.goofy.goofyaddons.utils.*;
@@ -39,11 +40,17 @@ public class NewBazaarFlipper implements Feature {
     private Minecraft minecraft = Minecraft.getInstance();
     private boolean checkedFirstPage = false;
     private int universalCounter = 0;
+    private boolean attemptedToClaim = false;
+    private boolean didReceiveItems = false;
     // 0 will represent inventory, 1 will present first page, 2 will present second page
     private List<BookList> bookLists = new ArrayList<>();
     private HashMap<Integer, Integer> emptyInventorySlots = new HashMap<>();
     private List<Task> taskList = new ArrayList<>();
 
+
+    public NewBazaarFlipper() {
+        ChatHook.onMessage("Claimed", this::handleClaimedMessage);
+    }
 
     @Override
     public String name() {
@@ -176,6 +183,13 @@ public class NewBazaarFlipper implements Feature {
 
                 if (containerNameCheck("Bazaar")) clock.start(randomizer());
                 if (containerNameCheck("Bazaar") && clock.shouldFire()) {
+                    // Waiting for chat message to appear here
+                    if (attemptedToClaim) {
+                        if (!didReceiveItems) return;
+                        attemptedToClaim = false;
+                        didReceiveItems = false;
+                    }
+
                     List<Integer> slot = inventoryScanner.findLoreContainer("BUY " + task.getBook().getRomanLevel(task.getBook().level()));
 
                     if (slot.isEmpty()) {
@@ -187,7 +201,7 @@ public class NewBazaarFlipper implements Feature {
 
                         // we check if we can combine the books
                         if (task.canCombine) {
-                            task.actionSchedule = Task.ActionSchedule.SELECTED_COMBINE_BUYORDER;
+                            task.actionSchedule = Task.ActionSchedule.SELECTED_COMBINE_STORE_BUYORDER;
                             task.setBookState(Task.BookState.SELECTED);
                             return;
                         }
@@ -208,10 +222,17 @@ public class NewBazaarFlipper implements Feature {
                             return;
                         }
 
+                        Task task1 = taskInState(Task.BookState.ANVIL);
+                        if (task1 != null) {
+                            state = task1.bookList.getFirst().location == 0 ? State.ANVIL : State.COMBINE;
+                            return;
+                        }
+
                         state = State.SELECTED;
                         return;
                     }
-
+                    InventoryUtils.clickSlot(slot.getFirst(), false);
+                    handleItemAssigning(task, amount);
                 }
 
             }
@@ -261,11 +282,11 @@ public class NewBazaarFlipper implements Feature {
                         }
 
                         switch (task.actionSchedule) {
-                            case SELECTED_STORE_BUYORDER -> {
+                            case SELECTED_STORE_BUYORDER, SELECTED_COMBINE_STORE_BUYORDER -> {
                                 task.setBookState(Task.BookState.IN_BUY_ORDER);
                                 task.actionSchedule = Task.ActionSchedule.NONE;
-                                break;
                             }
+
                         }
                     }
 
@@ -355,5 +376,22 @@ public class NewBazaarFlipper implements Feature {
             bookLists.add(new BookList(book, level, location));
         }
         bookLists.sort(Comparator.comparingInt(bookList -> bookList.location));
+    }
+
+    private void handleClaimedMessage(String string) {
+        if (!didReceiveItems) {
+            didReceiveItems = true;
+        }
+    }
+
+    private void handleItemAssigning(Task task, int amount) {
+        if (amount > task.getAmountToOrder()) {
+            int newAmount = amount - task.getAmountToOrder();
+            task.assignBook(task.getBook(), task.getBook().level(), 0, newAmount);
+            handleBookList(task.getBook(), 0, task.getBook().level(), (amount - newAmount));
+            task.setBookState(Task.BookState.ANVIL);
+            return;
+        }
+        task.assignBook(task.getBook(), task.getBook().level(), 0, amount);
     }
 }

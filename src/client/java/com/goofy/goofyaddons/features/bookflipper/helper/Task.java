@@ -20,7 +20,7 @@ public class Task {
 
     public enum ActionSchedule {
         NONE,
-        SELECTED_COMBINE_BUYORDER,
+        SELECTED_COMBINE_STORE_BUYORDER,
         SELECTED_STORE_BUYORDER
     }
 
