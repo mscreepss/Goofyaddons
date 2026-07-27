@@ -18,11 +18,16 @@ public class Task {
         REPLACE_SELL
     }
 
+    public enum ActionSchedule {
+        NONE,
+        SELECTED_COMBINE_BUYORDER,
+        SELECTED_STORE_BUYORDER
+    }
+
     public boolean instaSell = false;
     public boolean instaBuy = false;
     public boolean canCombine = false;
-    public boolean selectedThenCombineThenBuyOrder;
-    public boolean selectedThenStoreThenBuyOrder;
+    public ActionSchedule actionSchedule = ActionSchedule.NONE;
     private Book book;
     private int amountToOrder;
     private BookState bookState;

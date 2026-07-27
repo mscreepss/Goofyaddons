@@ -3,10 +3,7 @@ package com.goofy.goofyaddons.features.bookflipper;
 import com.goofy.goofyaddons.config.GoofyConfig;
 import com.goofy.goofyaddons.features.Feature;
 import com.goofy.goofyaddons.features.bookflipper.helper.*;
-import com.goofy.goofyaddons.utils.ChatUtils;
-import com.goofy.goofyaddons.utils.Clock;
-import com.goofy.goofyaddons.utils.InventoryScanner;
-import com.goofy.goofyaddons.utils.ScoreboardUtils;
+import com.goofy.goofyaddons.utils.*;
 import net.minecraft.client.Minecraft;
 
 import java.util.*;
@@ -37,9 +34,11 @@ public class NewBazaarFlipper implements Feature {
     private List<FlipItem> flipItemList = new ArrayList<>();
     private boolean notEnoughCash  = false;
     private boolean needToStoreExcessBook = false;
+    private boolean usingSecondPage = false;
     private boolean isStartUpCheckCompleted = false;
     private Minecraft minecraft = Minecraft.getInstance();
     private boolean checkedFirstPage = false;
+    private int universalCounter = 0;
     // 0 will represent inventory, 1 will present first page, 2 will present second page
     private List<BookList> bookLists = new ArrayList<>();
     private HashMap<Integer, Integer> emptyInventorySlots = new HashMap<>();
@@ -182,13 +181,13 @@ public class NewBazaarFlipper implements Feature {
                     if (slot.isEmpty()) {
                         // First we check if we can combine the books
                         if (task.canCombine) {
-                            task.selectedThenCombineThenBuyOrder = true;
+                            task.actionSchedule = Task.ActionSchedule.SELECTED_COMBINE_BUYORDER;
                             task.setBookState(Task.BookState.SELECTED);
                             return;
                         }
                         // if we cannot we check if we have any book in our inventory
                         if (task.bookList.getFirst().location == 0) {
-                            task.selectedThenStoreThenBuyOrder = true;
+                            task.actionSchedule = Task.ActionSchedule.SELECTED_STORE_BUYORDER;
                             task.setBookState(Task.BookState.SELECTED);
                             return;
                         }
@@ -209,7 +208,64 @@ public class NewBazaarFlipper implements Feature {
             }
 
             case STORE -> {
+                Task task = taskInState(Task.BookState.STORE);
+                if (task == null && !needToStoreExcessBook) {
+                    usingSecondPage = false;
+                    minecraft.player.closeContainer();
+                    state = State.IDLE;
+                }
 
+                if (minecraft.screen == null) clock.start(randomizer());
+                if (minecraft.screen == null && clock.shouldFire()) {
+                    if (emptyInventorySlots.get(1) == 0) {
+                        usingSecondPage = true;
+                    }
+
+                    minecraft.player.connection.sendCommand(usingSecondPage ? GoofyConfig.INSTANCE.secondPage : GoofyConfig.INSTANCE.firstPage);
+                }
+
+                if (containerNameCheck("Ender Chest") || containerNameCheck("Jumbo Backpack") || containerNameCheck("Greater Backpack")) clock.start(randomizer());
+                if (containerNameCheck("Ender Chest") || containerNameCheck("Jumbo Backpack") || containerNameCheck("Greater Backpack") && clock.shouldFire()) {
+                    BookList bookList = null;
+                    if (needToStoreExcessBook) {
+                        for (BookList book : bookLists) {
+                            if (book.location != 0) break;
+                            bookList = book;
+                            break;
+                        }
+                    } else {
+                        for (BookList book : task.bookList) {
+                            if (book.location != 0) break;
+                            bookList = book;
+                            break;
+                        }
+                    }
+
+                    if (bookList == null) {
+                        if (needToStoreExcessBook) {
+                            needToStoreExcessBook = false;
+                            return;
+                        }
+
+                        switch (task.actionSchedule) {
+                            case SELECTED_STORE_BUYORDER -> {
+                                task.setBookState(Task.BookState.IN_BUY_ORDER);
+                                task.actionSchedule = Task.ActionSchedule.NONE;
+                                break;
+                            }
+                        }
+                    }
+
+                    List<Integer> slot = inventoryScanner.findLoreInv(bookList.book.getRomanLevel(bookList.level));
+
+                    if (slot.isEmpty() || universalCounter != 0 && universalCounter > slot.size()) {
+                        bookList.location = usingSecondPage ? 2 : 1;
+                        return;
+                    }
+
+                    universalCounter = slot.size();
+                    InventoryUtils.clickSlot(slot.getFirst(), true);
+                }
             }
 
         }
@@ -227,6 +283,7 @@ public class NewBazaarFlipper implements Feature {
         ChatUtils.clientMessage("State switched from: " + lastState + " to: " + state);
         clock.stop();
         lastState = state;
+        universalCounter = 0;
         if (state == State.FETCHING) {
             flipItemList.clear();
             flipCalculator.Refresh();
