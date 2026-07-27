@@ -235,6 +235,13 @@ public class NewBazaarFlipper implements Feature {
                     handleItemAssigning(task, amount);
                 }
 
+                if (containerNameCheck("Order")) clock.start(randomizer());
+                if (containerNameCheck("Order") && clock.shouldFire()) {
+                    List<Integer> slot = inventoryScanner.findContainer("Cancel Order");
+                    if (slot.isEmpty()) return;
+                    InventoryUtils.clickSlot(slot.getFirst(), false);
+                }
+
             }
 
             case IDLE -> {
