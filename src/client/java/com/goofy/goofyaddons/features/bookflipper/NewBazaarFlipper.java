@@ -179,7 +179,13 @@ public class NewBazaarFlipper implements Feature {
                     List<Integer> slot = inventoryScanner.findLoreContainer("BUY " + task.getBook().getRomanLevel(task.getBook().level()));
 
                     if (slot.isEmpty()) {
-                        // First we check if we can combine the books
+                        // first we check if we have all the required books
+                        if (task.getAmountToOrder() == 0) {
+                            task.setBookState(Task.BookState.ANVIL);
+                            return;
+                        }
+
+                        // we check if we can combine the books
                         if (task.canCombine) {
                             task.actionSchedule = Task.ActionSchedule.SELECTED_COMBINE_BUYORDER;
                             task.setBookState(Task.BookState.SELECTED);
@@ -197,7 +203,13 @@ public class NewBazaarFlipper implements Feature {
 
                     int amount = inventoryScanner.checkOrder(slot.getFirst());
                     if (amount > inventoryScanner.getEmptyInventorySlots()) {
-                        if (needToStoreExcessBook) state = State.STORE;
+                        if (needToStoreExcessBook) {
+                            state = State.STORE;
+                            return;
+                        }
+
+                        state = State.SELECTED;
+                        return;
                     }
 
                 }
@@ -244,6 +256,7 @@ public class NewBazaarFlipper implements Feature {
                     if (bookList == null) {
                         if (needToStoreExcessBook) {
                             needToStoreExcessBook = false;
+                            state = isStartUpCheckCompleted ? State.IDLE : State.STARTUP_BAZAAR_CHECK;
                             return;
                         }
 
