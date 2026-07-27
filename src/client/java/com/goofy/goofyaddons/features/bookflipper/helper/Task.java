@@ -1,6 +1,7 @@
 package com.goofy.goofyaddons.features.bookflipper.helper;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 public class Task {
@@ -19,6 +20,8 @@ public class Task {
 
     public boolean instaSell = false;
     public boolean instaBuy = false;
+    public boolean canCombine = false;
+    public boolean selectedThenCombineThenBuyOrder;
     public boolean selectedThenStoreThenBuyOrder;
     private Book book;
     private int amountToOrder;
@@ -60,6 +63,22 @@ public class Task {
         for (int i = 0; i < amountOfBook; i++) {
             bookList.add(new BookList(book, level, location));
         }
+        // we sort the list here by location
+        if (location == 0) {
+            bookList.sort(Comparator.comparingInt(bookList -> bookList.location));
+        }
+
+        // we check if we can combine here
+        if (amountOfBook < 1 && !canCombine) {
+            for (BookList bookListItem : bookList) {
+                if (bookListItem.level != level) continue;
+                canCombine = true;
+                break;
+            }
+            return 0;
+        }
+
+        canCombine = true;
 
         return 0;
     }

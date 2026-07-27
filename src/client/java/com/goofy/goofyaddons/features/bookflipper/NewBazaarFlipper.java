@@ -17,7 +17,12 @@ public class NewBazaarFlipper implements Feature {
         FETCHING,
         STARTUP_CHECK,
         STARTUP_BAZAAR_CHECK,
-        IDLE
+        IDLE,
+        SELECTED,
+        BUY_ORDER,
+        STORE,
+        ANVIL,
+        COMBINE
 
     }
 
@@ -136,7 +141,6 @@ public class NewBazaarFlipper implements Feature {
                                 int attempt = task.assignBook(task.getBook(), level, 0, 1);
 
                                 if (attempt == 0) {
-                                    task.selectedThenStoreThenBuyOrder = true;
                                     counter.add(i);
                                     continue;
                                 }
@@ -166,21 +170,46 @@ public class NewBazaarFlipper implements Feature {
                     state = State.IDLE;
                 }
 
-                if (fire("", true)) {
+                if (minecraft.screen == null) clock.start(randomizer());
+                if (minecraft.screen == null && clock.shouldFire()) {
                     minecraft.player.connection.sendCommand("managebazaarorders");
                 }
 
-                if (fire("bazaar", false)) {
+                if (containerNameCheck("Bazaar")) clock.start(randomizer());
+                if (containerNameCheck("Bazaar") && clock.shouldFire()) {
                     List<Integer> slot = inventoryScanner.findLoreContainer("BUY " + task.getBook().getRomanLevel(task.getBook().level()));
 
                     if (slot.isEmpty()) {
-
+                        // First we check if we can combine the books
+                        if (task.canCombine) {
+                            task.selectedThenCombineThenBuyOrder = true;
+                            task.setBookState(Task.BookState.SELECTED);
+                            return;
+                        }
+                        // if we cannot we check if we have any book in our inventory
+                        if (task.bookList.getFirst().location == 0) {
+                            task.selectedThenStoreThenBuyOrder = true;
+                            task.setBookState(Task.BookState.SELECTED);
+                            return;
+                        }
+                        task.setBookState(Task.BookState.SELECTED);
+                        return;
                     }
+
+                    int amount = inventoryScanner.checkOrder(slot.getFirst());
+                    if (amount > inventoryScanner.getEmptyInventorySlots()) {
+                        if (needToStoreExcessBook) state = State.STORE;
+                    }
+
                 }
 
             }
 
             case IDLE -> {
+            }
+
+            case STORE -> {
+
             }
 
         }
@@ -190,18 +219,6 @@ public class NewBazaarFlipper implements Feature {
     private boolean containerNameCheck(String name) {
          if (minecraft.screen == null) return false;
         return minecraft.screen.getTitle().toString().contains(name);
-    }
-
-    private boolean fire(String name, boolean containerCheck) {
-        if (containerCheck && minecraft.screen == null) {
-            clock.start(randomizer());
-            return clock.shouldFire();
-        }
-        if (containerNameCheck(name)) {
-            clock.start(randomizer());
-            return clock.shouldFire();
-        }
-        return false;
     }
 
 
@@ -267,5 +284,6 @@ public class NewBazaarFlipper implements Feature {
         for (int i = 0; i < amount; i++) {
             bookLists.add(new BookList(book, level, location));
         }
+        bookLists.sort(Comparator.comparingInt(bookList -> bookList.location));
     }
 }
