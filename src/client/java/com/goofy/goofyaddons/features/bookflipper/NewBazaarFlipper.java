@@ -6,7 +6,10 @@ import com.goofy.goofyaddons.features.Feature;
 import com.goofy.goofyaddons.features.bookflipper.helper.*;
 import com.goofy.goofyaddons.utils.*;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.inventory.AbstractSignEditScreen;
+import net.minecraft.client.gui.screens.inventory.SignEditScreen;
 
+import java.lang.reflect.Field;
 import java.util.*;
 
 public class NewBazaarFlipper implements Feature {
@@ -16,7 +19,7 @@ public class NewBazaarFlipper implements Feature {
         STARTUP_CHECK,
         STARTUP_BAZAAR_CHECK,
         IDLE,
-        SELECTED,
+        BAZAAR_NAVIGATION,
         BUY_ORDER,
         STORE,
         ANVIL,
@@ -31,6 +34,7 @@ public class NewBazaarFlipper implements Feature {
     private ScoreboardUtils scoreboardUtils = new ScoreboardUtils();
     private SplittableRandom splittableRandom = new SplittableRandom();
     private InventoryScanner inventoryScanner = new InventoryScanner();
+    private BazaarMonitor bazaarMonitor = new BazaarMonitor();
     private boolean running = false;
     private List<FlipItem> flipItemList = new ArrayList<>();
     private boolean notEnoughCash  = false;
@@ -42,6 +46,7 @@ public class NewBazaarFlipper implements Feature {
     private int universalCounter = 0;
     private boolean attemptedToClaim = false;
     private boolean didReceiveItems = false;
+    private Task activeTask = null;
     // 0 will represent inventory, 1 will present first page, 2 will present second page
     private List<BookList> bookLists = new ArrayList<>();
     private HashMap<Integer, Integer> emptyInventorySlots = new HashMap<>();
@@ -211,6 +216,7 @@ public class NewBazaarFlipper implements Feature {
                             task.setBookState(Task.BookState.SELECTED);
                             return;
                         }
+                        activeTask = task;
                         task.setBookState(Task.BookState.SELECTED);
                         return;
                     }
@@ -228,7 +234,7 @@ public class NewBazaarFlipper implements Feature {
                             return;
                         }
 
-                        state = State.SELECTED;
+                        state = State.BAZAAR_NAVIGATION;
                         return;
                     }
                     InventoryUtils.clickSlot(slot.getFirst(), false);
@@ -245,6 +251,67 @@ public class NewBazaarFlipper implements Feature {
             }
 
             case IDLE -> {
+
+            }
+
+            case BAZAAR_NAVIGATION -> {
+
+                if (minecraft.screen == null) clock.start(randomizer());
+                if (minecraft.screen == null && clock.shouldFire()) {
+                    minecraft.player.connection.sendCommand(activeTask.getBook().name().replace("Ultimate", ""));
+                }
+
+                if (containerNameCheck("Bazaar")) clock.start(randomizer());
+                if (containerNameCheck("Bazaar") && clock.shouldFire()) {
+                    List<Integer> slots = inventoryScanner.findContainer(activeTask.getBook().getRomanLevel(activeTask.getBook().level()));
+                    if (slots.isEmpty()) return;
+                    InventoryUtils.clickSlot(slots.getFirst(), false);
+                }
+
+                if (containerNameCheck(activeTask.getBook().name())) clock.start(randomizer());
+                if (containerNameCheck(activeTask.getBook().name()) && clock.shouldFire()) {
+                    InventoryUtils.clickSlot(activeTask.instaBuy ? 10 : 15, false);
+                }
+
+                if (containerNameCheck("How many do you want")) clock.start(randomizer());
+                if (containerNameCheck("How many do you want") && clock.shouldFire()) {
+                    InventoryUtils.clickSlot(16, false);
+                }
+
+                if (minecraft.screen instanceof SignEditScreen) clock.start(randomizer());
+                if (minecraft.screen instanceof SignEditScreen && clock.shouldFire()) {
+                    handleSign();
+                }
+
+                if (containerNameCheck("How much do you want to pay")) clock.start(randomizer());
+                if (containerNameCheck("How much do you want to pay") && clock.shouldFire()) {
+                    bazaarMonitor.add(activeTask.getBook(), inventoryScanner.getUnitPrice(12), false);
+                    InventoryUtils.clickSlot(12, false);
+                }
+
+                if (containerNameCheck("Confirm")) clock.start(randomizer());
+                if (containerNameCheck("Confirm") && clock.shouldFire()) {
+                    InventoryUtils.clickSlot(13, false);
+                    // first we check if the order was a insta buy
+                    if (activeTask.instaBuy) {
+                        activeTask.setBookState(activeTask.bookList.getLast().location != 0 ? Task.BookState.ANVIL : Task.BookState.COMBINE);
+                        return;
+                    }
+
+                    switch (activeTask.actionSchedule) {
+                        case SELECTED_COMBINE_STORE_BUYORDER -> {
+                            activeTask.setBookState(Task.BookState.COMBINE);
+                        }
+
+                        case SELECTED_STORE_BUYORDER -> {
+                            activeTask.setBookState(Task.BookState.STORE);
+                        }
+
+                        case NONE -> {
+                            activeTask.setBookState(Task.BookState.IN_BUY_ORDER);
+                        }
+                    }
+                }
             }
 
             case STORE -> {
@@ -400,5 +467,20 @@ public class NewBazaarFlipper implements Feature {
             return;
         }
         task.assignBook(task.getBook(), task.getBook().level(), 0, amount);
+    }
+
+    private void handleSign() {
+        String amountToOrder = String.valueOf(activeTask.getAmountToOrder());
+        if (minecraft.screen instanceof AbstractSignEditScreen signScreen) {
+            try {
+                Field messagesField = AbstractSignEditScreen.class.getDeclaredField("messages");
+                messagesField.setAccessible(true);
+                String[] messages = (String[]) messagesField.get(signScreen);
+                messages[0] = amountToOrder;
+                minecraft.setScreen(null);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
     }
 }
