@@ -47,7 +47,7 @@ public class NewBazaarFlipper implements Feature {
     private boolean isStartUpCheckCompleted = false;
     private Minecraft minecraft = Minecraft.getInstance();
     private boolean checkedFirstPage = false;
-    private int universalCounter = 0;
+    private int store_Counter = 0;
     private boolean attemptedToClaim = false;
     private boolean didReceiveItems = false;
     private Task activeTask = null;
@@ -264,6 +264,11 @@ public class NewBazaarFlipper implements Feature {
             }
 
             case IDLE -> {
+                if (needToStoreExcessBook) {
+                    state = State.STORE;
+                    return;
+                }
+
                 Task taskToHandle = null;
 
                 // here we loop through every task and pick based of priority
@@ -413,12 +418,14 @@ public class NewBazaarFlipper implements Feature {
 
                     List<Integer> slot = inventoryScanner.findLoreInv(bookList.book.getRomanLevel(bookList.level));
 
-                    if (slot.isEmpty() || universalCounter != 0 && universalCounter > slot.size()) {
+
+                    // compares how many items it had before and how many items it has now to label them as moved or just labeling them once empty
+                    if (slot.isEmpty() || store_Counter != 0 && store_Counter > slot.size()) {
                         bookList.location = usingSecondPage ? 2 : 1;
                         return;
                     }
 
-                    universalCounter = slot.size();
+                    store_Counter = slot.size();
                     InventoryUtils.clickSlot(slot.getFirst(), true);
                 }
             }
@@ -438,7 +445,7 @@ public class NewBazaarFlipper implements Feature {
         ChatUtils.clientMessage("State switched from: " + lastState + " to: " + state);
         clock.stop();
         lastState = state;
-        universalCounter = 0;
+        store_Counter = 0;
         if (state == State.FETCHING) {
             flipItemList.clear();
             flipCalculator.Refresh();
@@ -530,4 +537,5 @@ public class NewBazaarFlipper implements Feature {
             }
         }
     }
+
 }
