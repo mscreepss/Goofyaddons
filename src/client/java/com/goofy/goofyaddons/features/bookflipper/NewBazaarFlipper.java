@@ -19,11 +19,15 @@ public class NewBazaarFlipper implements Feature {
         STARTUP_CHECK,
         STARTUP_BAZAAR_CHECK,
         IDLE,
+        OUTBID,
         BAZAAR_NAVIGATION,
         BUY_ORDER,
         STORE,
         ANVIL,
-        COMBINE
+        COMBINE,
+        SELL,
+        REPLACE_SELL,
+        SELL_ORDER
 
     }
 
@@ -51,6 +55,15 @@ public class NewBazaarFlipper implements Feature {
     private List<BookList> bookLists = new ArrayList<>();
     private HashMap<Integer, Integer> emptyInventorySlots = new HashMap<>();
     private List<Task> taskList = new ArrayList<>();
+
+    private static final Map<Task.BookState, Integer> STATE_PRIORITY = Map.of(
+            Task.BookState.BAZAAR_ORDER_CHECK,  1,
+            Task.BookState.REPLACE_SELL,        2,
+            Task.BookState.ANVIL,               3,
+            Task.BookState.STORE,               4,
+            Task.BookState.SELECTED,            5,
+            Task.BookState.OUTBID,              6
+    );
 
 
     public NewBazaarFlipper() {
@@ -251,7 +264,41 @@ public class NewBazaarFlipper implements Feature {
             }
 
             case IDLE -> {
+                Task taskToHandle = null;
 
+                // here we loop through every task and pick based of priority
+                for (Task task : taskList) {
+                    if (!isStartUpCheckCompleted && task.getBookState().equals(Task.BookState.OUTBID) || inventoryScanner.getEmptyInventorySlots() <= 0) continue;
+                    Integer rank = STATE_PRIORITY.get(task.getBookState());
+                    if (rank == null) continue;
+
+                    if (taskToHandle == null || rank > STATE_PRIORITY.get(taskToHandle.getBookState())) {
+                        taskToHandle = task;
+                    }
+                }
+
+                if (taskToHandle == null) return;
+                switch (taskToHandle.getBookState()) {
+
+                    case OUTBID -> state = State.OUTBID;
+
+                    case SELECTED -> {
+                        activeTask = taskToHandle;
+                        state = State.BAZAAR_NAVIGATION;
+                    }
+
+                    case STORE -> state = State.STORE;
+
+                    case ANVIL -> {
+                        if (taskToHandle.bookList.getFirst().location != 0) {
+                            state = State.COMBINE;
+                            return;
+                        }
+                        state = State.ANVIL;
+                    }
+
+                    case REPLACE_SELL -> state = State.REPLACE_SELL;
+                }
             }
 
             case BAZAAR_NAVIGATION -> {
