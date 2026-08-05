@@ -45,6 +45,7 @@ public class NewBazaarFlipper implements Feature {
     private boolean needToStoreExcessBook = false;
     private boolean usingSecondPage = false;
     private boolean isStartUpCheckCompleted = false;
+    private boolean inventoryIsFull = false;
     private Minecraft minecraft = Minecraft.getInstance();
     private boolean checkedFirstPage = false;
     private int store_Counter = 0;
@@ -192,6 +193,8 @@ public class NewBazaarFlipper implements Feature {
                 if (task == null) {
                     minecraft.player.closeContainer();
                     state = State.IDLE;
+                    isStartUpCheckCompleted = true;
+                    return;
                 }
 
                 if (minecraft.screen == null) clock.start(randomizer());
@@ -236,18 +239,7 @@ public class NewBazaarFlipper implements Feature {
 
                     int amount = inventoryScanner.checkOrder(slot.getFirst());
                     if (amount > inventoryScanner.getEmptyInventorySlots()) {
-                        if (needToStoreExcessBook) {
-                            state = State.STORE;
-                            return;
-                        }
-
-                        Task task1 = taskInState(Task.BookState.ANVIL);
-                        if (task1 != null) {
-                            state = task1.bookList.getFirst().location == 0 ? State.ANVIL : State.COMBINE;
-                            return;
-                        }
-
-                        state = State.BAZAAR_NAVIGATION;
+                        state = State.IDLE;
                         return;
                     }
                     InventoryUtils.clickSlot(slot.getFirst(), false);
@@ -273,7 +265,7 @@ public class NewBazaarFlipper implements Feature {
 
                 // here we loop through every task and pick based of priority
                 for (Task task : taskList) {
-                    if (!isStartUpCheckCompleted && task.getBookState().equals(Task.BookState.OUTBID) || inventoryScanner.getEmptyInventorySlots() <= 0) continue;
+                    if (!isStartUpCheckCompleted && task.getBookState().equals(Task.BookState.OUTBID) || inventoryIsFull) continue;
                     Integer rank = STATE_PRIORITY.get(task.getBookState());
                     if (rank == null) continue;
 
@@ -295,6 +287,18 @@ public class NewBazaarFlipper implements Feature {
                     case STORE -> state = State.STORE;
 
                     case ANVIL -> {
+                        if (taskToHandle.bookList.getFirst().level == taskToHandle.getBook().sellLevel()) {
+                            if (taskToHandle.bookList.getFirst().location == 0) {
+                                taskToHandle.actionSchedule = Task.ActionSchedule.ANVIL_SELL;
+                                taskToHandle.setBookState(Task.BookState.ANVIL);
+                                state = State.ANVIL;
+                                return;
+                            }
+                            taskToHandle.setBookState(Task.BookState.SELL);
+                            state = State.SELL;
+                            return;
+                        }
+
                         if (taskToHandle.bookList.getFirst().location != 0) {
                             state = State.COMBINE;
                             return;
@@ -344,7 +348,7 @@ public class NewBazaarFlipper implements Feature {
                 if (containerNameCheck("Confirm")) clock.start(randomizer());
                 if (containerNameCheck("Confirm") && clock.shouldFire()) {
                     InventoryUtils.clickSlot(13, false);
-                    // first we check if the order was a insta buy
+                    // first we check if the order was an insta buy
                     if (activeTask.instaBuy) {
                         activeTask.setBookState(activeTask.bookList.getLast().location != 0 ? Task.BookState.ANVIL : Task.BookState.COMBINE);
                         return;
@@ -364,6 +368,10 @@ public class NewBazaarFlipper implements Feature {
                         }
                     }
                 }
+            }
+
+            case OUTBID -> {
+
             }
 
             case STORE -> {

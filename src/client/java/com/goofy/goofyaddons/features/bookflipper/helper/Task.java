@@ -21,7 +21,8 @@ public class Task {
     public enum ActionSchedule {
         NONE,
         SELECTED_COMBINE_STORE_BUYORDER,
-        SELECTED_STORE_BUYORDER
+        SELECTED_STORE_BUYORDER,
+        ANVIL_SELL
     }
 
     public boolean instaSell = false;
