@@ -252,7 +252,6 @@ public class NewBazaarFlipper implements Feature {
                     if (slot.isEmpty()) return;
                     InventoryUtils.clickSlot(slot.getFirst(), false);
                 }
-
             }
 
             case IDLE -> {
@@ -311,7 +310,6 @@ public class NewBazaarFlipper implements Feature {
             }
 
             case BAZAAR_NAVIGATION -> {
-
                 if (minecraft.screen == null) clock.start(randomizer());
                 if (minecraft.screen == null && clock.shouldFire()) {
                     minecraft.player.connection.sendCommand(activeTask.getBook().name().replace("Ultimate", ""));
@@ -371,7 +369,69 @@ public class NewBazaarFlipper implements Feature {
             }
 
             case OUTBID -> {
+                Task task = taskInState(Task.BookState.OUTBID);
+                if (task == null) {
+                    minecraft.player.closeContainer();
+                    state = State.IDLE;
+                    return;
+                }
 
+                if (minecraft.screen == null) clock.start(randomizer());
+                if (minecraft.screen == null && clock.shouldFire()) {
+                    minecraft.player.connection.sendCommand("managebazaarorders");
+                }
+
+                if (containerNameCheck("Bazaar")) clock.start(randomizer());
+                if (containerNameCheck("Bazaar") && clock.shouldFire()) {
+                    // Waiting for chat message to appear here
+                    if (attemptedToClaim) {
+                        if (!didReceiveItems) return;
+                        attemptedToClaim = false;
+                        didReceiveItems = false;
+                    }
+
+                    List<Integer> slot = inventoryScanner.findLoreContainer("BUY " + task.getBook().getRomanLevel(task.getBook().level()));
+
+                    if (slot.isEmpty()) {
+                        // first we check if we have all the required books
+                        if (task.getAmountToOrder() == 0) {
+                            task.setBookState(Task.BookState.ANVIL);
+                            return;
+                        }
+
+                        // we check if we can combine the books
+                        if (task.canCombine) {
+                            task.actionSchedule = Task.ActionSchedule.SELECTED_COMBINE_STORE_BUYORDER;
+                            task.setBookState(Task.BookState.SELECTED);
+                            return;
+                        }
+                        // if we cannot we check if we have any book in our inventory
+                        if (task.bookList.getFirst().location == 0) {
+                            task.actionSchedule = Task.ActionSchedule.SELECTED_STORE_BUYORDER;
+                            task.setBookState(Task.BookState.SELECTED);
+                            return;
+                        }
+                        activeTask = task;
+                        task.setBookState(Task.BookState.SELECTED);
+                        return;
+                    }
+
+                    int amount = inventoryScanner.checkOrder(slot.getFirst());
+                    if (amount > inventoryScanner.getEmptyInventorySlots()) {
+                        state = State.IDLE;
+                        inventoryIsFull = true;
+                        return;
+                    }
+                    InventoryUtils.clickSlot(slot.getFirst(), false);
+                    handleItemAssigning(task, amount);
+                }
+
+                if (containerNameCheck("Order")) clock.start(randomizer());
+                if (containerNameCheck("Order") && clock.shouldFire()) {
+                    List<Integer> slot = inventoryScanner.findContainer("Cancel Order");
+                    if (slot.isEmpty()) return;
+                    InventoryUtils.clickSlot(slot.getFirst(), false);
+                }
             }
 
             case STORE -> {
@@ -452,15 +512,15 @@ public class NewBazaarFlipper implements Feature {
         if (state == lastState) return;
         ChatUtils.clientMessage("State switched from: " + lastState + " to: " + state);
         clock.stop();
+        if (lastState == State.IDLE) {
+            inventoryIsFull = false;
+        }
         lastState = state;
         store_Counter = 0;
+
         if (state == State.FETCHING) {
             flipItemList.clear();
             flipCalculator.Refresh();
-        }
-
-        if (state == State.STARTUP_BAZAAR_CHECK) {
-            emptyInventorySlots.put(0, inventoryScanner.getEmptyInventorySlots());
         }
     }
 
