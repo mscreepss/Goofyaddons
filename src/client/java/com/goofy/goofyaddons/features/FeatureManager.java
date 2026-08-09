@@ -1,6 +1,7 @@
 package com.goofy.goofyaddons.features;
 
 import com.goofy.goofyaddons.features.bookflipper.BazaarFlipper;
+import com.goofy.goofyaddons.features.bookflipper.NewBazaarFlipper;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -14,7 +15,7 @@ public class FeatureManager {
     public static final FeatureManager INSTANCE = new FeatureManager();
 
     private FeatureManager() {
-        featureList.add(new BazaarFlipper());
+        featureList.add(new NewBazaarFlipper());
     }
 
     public void onTick() {
