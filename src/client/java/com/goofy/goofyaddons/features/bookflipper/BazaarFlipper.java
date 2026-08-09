@@ -343,19 +343,19 @@ public class BazaarFlipper implements Feature {
                     InventoryUtils.clickSlot(12, false);
                 }
 
-                    if (containerCheck("Confirm")) clock.start(randomizer());
-                    if (containerCheck("Confirm") && clock.shouldFire()) {
-                        debug("confirming buy order for " + activeBook);
-                        InventoryUtils.clickSlot(13, false);
-                        if (shouldStore(activeBook)) {
-                            editStateBook(activeBook, BookState.STORE);
-                            state = State.IDLE;
-                            return;
-                        }
-                        editStateBook(activeBook, BookState.BUY_ORDER);
+                if (containerCheck("Confirm")) clock.start(randomizer());
+                if (containerCheck("Confirm") && clock.shouldFire()) {
+                    debug("confirming buy order for " + activeBook);
+                    InventoryUtils.clickSlot(13, false);
+                    if (shouldStore(activeBook)) {
+                        editStateBook(activeBook, BookState.STORE);
                         state = State.IDLE;
-
+                        return;
                     }
+                    editStateBook(activeBook, BookState.BUY_ORDER);
+                    state = State.IDLE;
+
+                }
 
             }
 
