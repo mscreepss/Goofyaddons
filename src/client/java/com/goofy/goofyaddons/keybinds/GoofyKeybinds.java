@@ -15,6 +15,7 @@ public class GoofyKeybinds {
     public static KeyMapping startKey;
     public static KeyMapping stopKey;
     public static KeyMapping reloadConfigKey;
+    public static KeyMapping openGuiKey;
 
     public static void register() {
         startKey = KeyMappingHelper.registerKeyMapping(new KeyMapping(
@@ -31,17 +32,22 @@ public class GoofyKeybinds {
                 CATEGORY
         ));
 
-        // NOT: GLFW'nin tuş sabitleri (GLFW_KEY_*) fiziksel/konum tabanlıdır ve her zaman
-        // ABD (QWERTY) klavye düzenindeki o karakterin bulunduğu FİZİKSEL tuş konumunu temsil eder;
-        // aktif klavye düzeninden bağımsızdır. Türkçe Q klavyede "/" karakteri Shift+7 ile yazılır,
-        // GLFW_KEY_SLASH ise ABD düzeninde "/" olan fiziksel tuş konumunu (TR'de "." tuşunun olduğu yer)
-        // temsil eder. Minecraft'ın tuş atama menüsünde bu tuş yine de "/" olarak görünecektir.
-        // Eğer gerçekten TR klavyenizde basarken "/" yazdığınız fiziksel tuşu (Shift+7) istiyorsanız
-        // GLFW.GLFW_KEY_7 kullanmanız gerekir; ona göre haber verin, değiştiririm.
+        openGuiKey = KeyMappingHelper.registerKeyMapping(new KeyMapping(
+                "key.goofyaddons.open_gui",
+                InputConstants.Type.KEYSYM,
+                GLFW.GLFW_KEY_G,
+                CATEGORY
+        ));
+
+        // GLFW_KEY_* sabitleri fiziksel/konum bazlıdır: ABD (QWERTY) düzeninde o karakterin
+        // bulunduğu FİZİKSEL tuş konumunu temsil eder, aktif klavye düzeninden bağımsızdır.
+        // TR-Q klavyede "/" karakteri Shift+7 ile yazılır (fiziksel olarak "7" tuşu), bu yüzden
+        // GLFW_KEY_SLASH değil GLFW_KEY_7 kullanılıyor — aksi halde "." konumundaki tuşa
+        // basmanız gerekirdi ama menüde "/" yazdığı için kimse o tuşa basmıyordu.
         reloadConfigKey = KeyMappingHelper.registerKeyMapping(new KeyMapping(
                 "key.goofyaddons.reload_config",
                 InputConstants.Type.KEYSYM,
-                GLFW.GLFW_KEY_SLASH,
+                GLFW.GLFW_KEY_7,
                 CATEGORY
         ));
     }
