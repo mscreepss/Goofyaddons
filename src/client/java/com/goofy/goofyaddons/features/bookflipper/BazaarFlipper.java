@@ -602,16 +602,27 @@ public class BazaarFlipper implements Feature {
                     }
                 }
 
-                if (counter == 2) clock.start(speedMode());
-                if (counter == 2 && clock.shouldFire()) {
+                // Sayıcı 2'ye ulaştıysa (2 kitap da konduysa) ve onay beklenmiyorsa saati başlat
+                if (counter == 2 && !combineConfirmPending) {
+                    combineConfirmClock.start(speedMode()); // İsterseniz buraya sabit bir milisaniye (örn: 500) yazabilirsiniz
+                    combineConfirmPending = true;
+                }
+                
+                // Onay bekleniyorsa ve saatin süresi dolduysa tıklama işlemini yap
+                if (counter == 2 && combineConfirmPending && combineConfirmClock.shouldFire()) {
                     debug("counter==2, clicking anvil output slot 22 with normal click");
                     InventoryUtils.clickSlot(22, false);
+                    
                     if (clickedOnce) {
                         clickedOnce = false;
                         counter = 0;
+                        combineConfirmPending = false; // İşlem bittiğinde pending durumunu sıfırla
                         return;
                     }
                     clickedOnce = true;
+                    // clickedOnce true olduktan sonra bir sonraki tick'te tekrar deneyebilmesi için saati yeniden başlat
+                    combineConfirmClock.start(speedMode());
+                }
                 }
             }
 
