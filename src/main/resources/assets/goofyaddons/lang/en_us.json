@@ -2,5 +2,6 @@
   "key.categories.goofyaddons": "GoofyAddons",
   "key.goofyaddons.start": "Start Macro",
   "key.goofyaddons.stop": "Stop Macro",
-  "key.goofyaddons.reload_config": "Reload Config"
+  "key.goofyaddons.reload_config": "Reload Config",
+  "key.goofyaddons.open_gui": "Open GUI"
 }
