@@ -623,7 +623,6 @@ public class BazaarFlipper implements Feature {
                     // clickedOnce true olduktan sonra bir sonraki tick'te tekrar deneyebilmesi için saati yeniden başlat
                     combineConfirmClock.start(speedMode());
                 }
-                }
             }
 
             case SELL -> {
