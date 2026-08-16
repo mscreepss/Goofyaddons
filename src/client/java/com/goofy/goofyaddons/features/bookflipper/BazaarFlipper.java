@@ -780,6 +780,24 @@ public class BazaarFlipper implements Feature {
         }
     }
 
+public String getStateName() {
+        return state.name();
+    }
+
+    public String getActiveBookName() {
+        return activeBook != null ? activeBook.getRomanLevel(activeBook.level()) : "-";
+    }
+
+    public List<String> getTaskSummary() {
+        List<String> lines = new ArrayList<>();
+        for (Map.Entry<Book, Task> entry : task.entrySet()) {
+            Book book = entry.getKey();
+            Task t = entry.getValue();
+            lines.add(book.getRomanLevel(book.level()) + ": " + t.getBookState()
+                    + " (remaining=" + t.getAmountToOrder() + ")");
+        }
+        return lines;
+    }
 
     private boolean shouldStore(Book book) {
         return task.get(book).shouldStore();
