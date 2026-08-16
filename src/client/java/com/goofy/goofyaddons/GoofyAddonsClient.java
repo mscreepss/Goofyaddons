@@ -4,12 +4,12 @@ import com.goofy.goofyaddons.config.GoofyConfig;
 import com.goofy.goofyaddons.event.ChatHook;
 import com.goofy.goofyaddons.failsafes.FailsafeManager;
 import com.goofy.goofyaddons.features.FeatureManager;
+import com.goofy.goofyaddons.features.economy.EconomyTracker;
 import com.goofy.goofyaddons.keybinds.GoofyKeybinds;
-import com.mojang.blaze3d.platform.InputConstants;
+import com.goofy.goofyaddons.render.hud.EconomyHud;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
-import org.lwjgl.glfw.GLFW;
 
 public class GoofyAddonsClient implements ClientModInitializer {
 
@@ -18,12 +18,16 @@ public class GoofyAddonsClient implements ClientModInitializer {
         GoofyConfig.load();
         ChatHook.register();
         GoofyKeybinds.register();
+        EconomyTracker.register();
+        EconomyHud.register();
         final Minecraft minecraft = Minecraft.getInstance();
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             FailsafeManager.INSTANCE.onTick();
             FeatureManager.INSTANCE.onTick();
 
-            if (InputConstants.isKeyDown(minecraft.getWindow(), GLFW.GLFW_KEY_BACKSLASH)) GoofyConfig.load();
+            while (GoofyKeybinds.reloadConfigKey.consumeClick()) {
+                GoofyConfig.load();
+            }
 
             while (GoofyKeybinds.startKey.consumeClick()) {
                 FeatureManager.INSTANCE.start("BazaarFlipper");
