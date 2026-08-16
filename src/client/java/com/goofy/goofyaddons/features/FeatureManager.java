@@ -45,6 +45,12 @@ public class FeatureManager {
         currentFeature.resume();
     }
 
+    public Feature getCurrentFeature() {
+        return currentFeature;
+    }
+
+    public boolean isMacroRunning() {
+    
     public boolean isMacroRunning() {
         return currentFeature != null;
     }
