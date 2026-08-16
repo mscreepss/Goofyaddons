@@ -14,6 +14,7 @@ public class GoofyKeybinds {
 
     public static KeyMapping startKey;
     public static KeyMapping stopKey;
+    public static KeyMapping reloadConfigKey; // Reload tuşunu ekledik
 
     public static void register() {
         startKey = KeyMappingHelper.registerKeyMapping(new KeyMapping(
@@ -27,6 +28,14 @@ public class GoofyKeybinds {
                 "key.goofyaddons.stop",
                 InputConstants.Type.KEYSYM,
                 GLFW.GLFW_KEY_K,
+                CATEGORY
+        ));
+
+        // R tuşuna atadık, oyuna girdiğinde ayarlardan istediğin tuşla değiştirebilirsin
+        reloadConfigKey = KeyMappingHelper.registerKeyMapping(new KeyMapping(
+                "key.goofyaddons.reload_config",
+                InputConstants.Type.KEYSYM,
+                GLFW.GLFW_KEY_R,
                 CATEGORY
         ));
     }
