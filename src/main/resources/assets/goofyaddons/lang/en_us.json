@@ -3,5 +3,5 @@
   "key.goofyaddons.start": "Start Macro",
   "key.goofyaddons.stop": "Stop Macro",
   "key.goofyaddons.reload_config": "Reload Config",
-  "key.goofyaddons.open_gui": "Open GUI"
+  "key.goofyaddons.toggle_overlay": "Toggle Overlay"
 }
