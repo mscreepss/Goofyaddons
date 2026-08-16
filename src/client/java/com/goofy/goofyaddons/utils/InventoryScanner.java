@@ -49,7 +49,7 @@ public class InventoryScanner {
         AbstractContainerMenu menu = minecraft.player.containerMenu;
 
         ItemStack itemStack = menu.slots.get(slot).getItem();
-        return itemStack.getCustomName().toString();
+        return itemStack.getCustomName().getString();
     }
 
     public List<Integer> findContainer(String name) {
