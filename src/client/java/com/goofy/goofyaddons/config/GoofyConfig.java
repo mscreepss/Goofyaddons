@@ -38,6 +38,10 @@ public class GoofyConfig {
     public String firstPage = "ec";
     public String secondPage = "ec 2";
 
+    // Persistent bazaar economy stats (EconomyTracker)
+    public double totalSpend = 0;
+    public double totalEarn = 0;
+
 
     public static void load() {
         try {
