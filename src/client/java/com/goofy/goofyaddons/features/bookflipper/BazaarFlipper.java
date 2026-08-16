@@ -938,7 +938,7 @@ public String getStateName() {
     }
 
 
-    private String containerCheck(String name) {
+    private boolean containerCheck(String name) {
         if (minecraft.screen == null) return false;
         String title = minecraft.screen.getTitle().getString();
         return title.toLowerCase().contains(name.toLowerCase());
