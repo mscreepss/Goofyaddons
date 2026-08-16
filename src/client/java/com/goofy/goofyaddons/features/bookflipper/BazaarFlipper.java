@@ -67,6 +67,8 @@ public class BazaarFlipper implements Feature {
     private int counterBazaar = 0;
     private boolean useSecondPage = false;
     private boolean secondPageCheck = false;
+    private final Clock combineConfirmClock = new Clock();
+    private boolean combineConfirmPending = false;
 
 
     private final Map<Book, Task> task = new LinkedHashMap<>();
