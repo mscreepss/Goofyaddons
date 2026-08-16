@@ -15,7 +15,7 @@ public class GoofyKeybinds {
     public static KeyMapping startKey;
     public static KeyMapping stopKey;
     public static KeyMapping reloadConfigKey;
-    public static KeyMapping openGuiKey;
+    public static KeyMapping toggleOverlayKey;
 
     public static void register() {
         startKey = KeyMappingHelper.registerKeyMapping(new KeyMapping(
@@ -32,18 +32,17 @@ public class GoofyKeybinds {
                 CATEGORY
         ));
 
-        openGuiKey = KeyMappingHelper.registerKeyMapping(new KeyMapping(
-                "key.goofyaddons.open_gui",
+        toggleOverlayKey = KeyMappingHelper.registerKeyMapping(new KeyMapping(
+                "key.goofyaddons.toggle_overlay",
                 InputConstants.Type.KEYSYM,
                 GLFW.GLFW_KEY_G,
                 CATEGORY
         ));
 
-        // GLFW_KEY_* sabitleri fiziksel/konum bazlıdır: ABD (QWERTY) düzeninde o karakterin
+        // GLFW_KEY_* sabitleri fiziksel/konum tabanlıdır: ABD (QWERTY) düzeninde o karakterin
         // bulunduğu FİZİKSEL tuş konumunu temsil eder, aktif klavye düzeninden bağımsızdır.
-        // TR-Q klavyede "/" karakteri Shift+7 ile yazılır (fiziksel olarak "7" tuşu), bu yüzden
-        // GLFW_KEY_SLASH değil GLFW_KEY_7 kullanılıyor — aksi halde "." konumundaki tuşa
-        // basmanız gerekirdi ama menüde "/" yazdığı için kimse o tuşa basmıyordu.
+        // TR-Q klavyede "/" karakteri Shift+7 ile yazılır (fiziksel olarak "7" konumu), bu yüzden
+        // GLFW_KEY_SLASH değil GLFW_KEY_7 kullanılıyor.
         reloadConfigKey = KeyMappingHelper.registerKeyMapping(new KeyMapping(
                 "key.goofyaddons.reload_config",
                 InputConstants.Type.KEYSYM,
