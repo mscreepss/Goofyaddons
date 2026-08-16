@@ -50,6 +50,8 @@ public class FeatureManager {
     }
 
     public boolean isMacroRunning() {
+
+    }
     
     public boolean isMacroRunning() {
         return currentFeature != null;
