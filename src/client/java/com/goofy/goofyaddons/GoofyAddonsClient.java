@@ -6,6 +6,7 @@ import com.goofy.goofyaddons.failsafes.FailsafeManager;
 import com.goofy.goofyaddons.features.FeatureManager;
 import com.goofy.goofyaddons.features.economy.EconomyTracker;
 import com.goofy.goofyaddons.keybinds.GoofyKeybinds;
+import com.goofy.goofyaddons.render.gui.GoofyGui;
 import com.goofy.goofyaddons.render.hud.EconomyHud;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -34,6 +35,11 @@ public class GoofyAddonsClient implements ClientModInitializer {
             }
             while (GoofyKeybinds.stopKey.consumeClick()) {
                 FeatureManager.INSTANCE.stop();
+            }
+            while (GoofyKeybinds.openGuiKey.consumeClick()) {
+                if (minecraft.screen == null) {
+                    minecraft.setScreen(new GoofyGui());
+                }
             }
         });
     }
