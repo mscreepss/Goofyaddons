@@ -888,13 +888,6 @@ public String getStateName() {
         );
     }
 
-    private boolean hasActiveTaskForName(String name) {
-        for (Book b : task.keySet()) {
-            if (b.name().equals(name)) return true;
-        }
-        return false;
-    }
-
     /**
      * Envanterde (SADECE envanter, ender chest'e bakmaz) bu kitabın taban seviyesi
      * ile satış seviyesi arasında kalmış, eşi olmayan (tek/öksüz kalmış) parça var mı
@@ -942,11 +935,6 @@ public String getStateName() {
             debug("Checking Flipitem " + book.name());
 
             if (task.containsKey(book)) continue;
-
-            if (hasActiveTaskForName(book.name())) {
-                debug(book.name() + " icin zaten baska bir seviyede aktif order var, bu turu atliyorum");
-                continue;
-            }
 
             int fullAmount = book.getQtyAmount(book.level());
             Integer topUpAmount = calculateTopUpAmount(book);
