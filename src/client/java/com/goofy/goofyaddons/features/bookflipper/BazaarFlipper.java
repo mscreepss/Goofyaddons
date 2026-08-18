@@ -898,11 +898,13 @@ public String getStateName() {
     /**
      * Envanterde (SADECE envanter, ender chest'e bakmaz) bu kitabın taban seviyesi
      * ile satış seviyesi arasında kalmış, eşi olmayan (tek/öksüz kalmış) parça var mı
-     * diye bakar. Her seviyedeki bir parça, taban seviyeye göre şu kadar "birim" değerinde:
-     * level+1 = 2 birim, level+2 = 4 birim, level+3 = 8 birim... (2^(sellLevel-seviye)).
-     * Bulunan birimler toplanıp normal tam miktardan (örn. 16) çıkarılır, kalan sayı
-     * kadar taban seviye kitabı sipariş edilmesi gerekir. Öksüz parça yoksa null döner
-     * (normal tam sipariş açılmalı demektir).
+     * diye bakar. Her seviyedeki bir parça, TABAN seviyeye göre şu kadar "birim"
+     * değerinde: taban+1 = 2 birim, taban+2 = 4 birim, taban+3 = 8 birim...
+     * (2^(seviye-taban)) — çünkü o seviyeye ulaşmak için tabandan o kadar kere
+     * ikiye katlama (birleştirme) gerekti. Bulunan birimler toplanıp normal tam
+     * miktardan (örn. 16) çıkarılır, kalan sayı kadar taban seviye kitabı sipariş
+     * edilmesi gerekir. Öksüz parça yoksa null döner (normal tam sipariş açılmalı
+     * demektir).
      */
     private Integer calculateTopUpAmount(Book book) {
         int fullAmount = book.getQtyAmount(book.level());
@@ -913,7 +915,7 @@ public String getStateName() {
             int count = inventoryScanner.findLoreInv(book.getRomanLevel(i)).size();
             if (count > 0) {
                 foundStray = true;
-                existingUnits += count * (1 << (book.sellLevel() - i));
+                existingUnits += count * (1 << (i - book.level()));
             }
         }
 
