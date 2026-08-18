@@ -537,13 +537,13 @@ public class BazaarFlipper implements Feature {
                     }
 
                     debug("found " + slots.size() + " book slots in ender chest");
-                    if (slots.isEmpty() && task.get(bookToHandle).isShouldCheckSecondPage() && !(task.get(bookToHandle).inInventory == bookToHandle.getQtyAmount(bookToHandle.level()))) {
+                    if (slots.isEmpty() && task.get(bookToHandle).isShouldCheckSecondPage() && !(task.get(bookToHandle).inInventory == task.get(bookToHandle).amountToOrder)) {
                         minecraft.player.closeContainer();
                         task.get(bookToHandle).setShouldCheckSecondPage(false);
                         return;
                     }
 
-                    if (slots.isEmpty() || task.get(bookToHandle).inInventory == bookToHandle.getQtyAmount(bookToHandle.level())) {
+                    if (slots.isEmpty() || task.get(bookToHandle).inInventory == task.get(bookToHandle).amountToOrder) {
                         editStateBook(bookToHandle, BookState.COMBINE);
                         return;
                     }
@@ -581,7 +581,18 @@ public class BazaarFlipper implements Feature {
                 if (containerCheck("Anvil") && counter < 2) clock.start(speedMode());
                 if (containerCheck("Anvil") && counter < 2 && clock.shouldFire()) {
                     if (level == 0) {
-                        editStateBook(bookToHandle, BookState.SELL);
+                        // ESKİ KOD: burada hiç kontrol etmeden direkt SELL'e geçiyordu.
+                        // Sorun: "birleştirilecek çift yok" != "kitap satış seviyesinde hazır".
+                        // Bazen tek bir kitap ender chest'te unutulmuş kalıyor ve bot onu asla
+                        // bulamadan sonsuz döngüye giriyordu. Şimdi önce gerçekten envanterde
+                        // satış seviyesindeki kitap var mı diye bakıyoruz.
+                        if (!inventoryScanner.locate(bookToHandle.getRomanLevel(bookToHandle.sellLevel())).isEmpty()) {
+                            debug("no pair to combine, sell-level copy confirmed in inventory, switching to SELL");
+                            editStateBook(bookToHandle, BookState.SELL);
+                        } else {
+                            debug("no pair to combine AND no sell-level copy found for " + bookToHandle.name() + ", sending back to ANVIL to recheck ender chest");
+                            editStateBook(bookToHandle, BookState.ANVIL);
+                        }
                         return;
                     }
 
@@ -661,8 +672,15 @@ public class BazaarFlipper implements Feature {
                         debug("no slots found, clicking on: " + bookList.getFirst().name());
                         List<Integer> slot = inventoryScanner.findLoreInv(bookList.getFirst().getRomanLevel(bookList.getFirst().sellLevel()));
                         if (slot.isEmpty()) {
+                            // ESKİ KOD: sadece "bookList.removeFirst()" yapıyordu. bookList burada
+                            // her tick'te booksInState(...) ile yeniden oluşturulan GEÇİCİ bir liste,
+                            // gerçek "task" haritası değil. Ondan silmek hiçbir şeyi değiştirmiyordu,
+                            // bu yüzden aynı kitap her tick'te tekrar tekrar karşımıza çıkıp sonsuz
+            // döngü yaratıyordu. Şimdi kitabın GERÇEK durumunu (task haritasındaki)
+                            // ANVIL'e geri çekiyoruz ki eksik parça ender chest'te tekrar aransın.
+                            debug("sell-level copy not found for " + bookList.getFirst().name() + ", sending back to ANVIL to recheck ender chest");
+                            editStateBook(bookList.getFirst(), BookState.ANVIL);
                             bookList.removeFirst();
-                            debug("slot is empty, removed book from booksToSell and return");
                             return;
                         }
                         InventoryUtils.clickSlot(slot.getFirst(), false);
@@ -870,6 +888,41 @@ public String getStateName() {
         );
     }
 
+    private boolean hasActiveTaskForName(String name) {
+        for (Book b : task.keySet()) {
+            if (b.name().equals(name)) return true;
+        }
+        return false;
+    }
+
+    /**
+     * Envanterde (SADECE envanter, ender chest'e bakmaz) bu kitabın taban seviyesi
+     * ile satış seviyesi arasında kalmış, eşi olmayan (tek/öksüz kalmış) parça var mı
+     * diye bakar. Her seviyedeki bir parça, taban seviyeye göre şu kadar "birim" değerinde:
+     * level+1 = 2 birim, level+2 = 4 birim, level+3 = 8 birim... (2^(sellLevel-seviye)).
+     * Bulunan birimler toplanıp normal tam miktardan (örn. 16) çıkarılır, kalan sayı
+     * kadar taban seviye kitabı sipariş edilmesi gerekir. Öksüz parça yoksa null döner
+     * (normal tam sipariş açılmalı demektir).
+     */
+    private Integer calculateTopUpAmount(Book book) {
+        int fullAmount = book.getQtyAmount(book.level());
+        int existingUnits = 0;
+        boolean foundStray = false;
+
+        for (int i = book.level() + 1; i < book.sellLevel(); i++) {
+            int count = inventoryScanner.findLoreInv(book.getRomanLevel(i)).size();
+            if (count > 0) {
+                foundStray = true;
+                existingUnits += count * (1 << (book.sellLevel() - i));
+            }
+        }
+
+        if (!foundStray) return null;
+
+        int needed = fullAmount - existingUnits;
+        return Math.max(1, needed);
+    }
+
     private void processData() {
         if (flipItemsList.isEmpty()) return;
         debug("item check passed");
@@ -885,14 +938,34 @@ public String getStateName() {
         }
 
         for (FlipItem flipItem : flipItemsList) {
-            debug("Checking Flipitem " + flipItem.book().name());
-            if (purse < flipItem.totalCost()) continue;
-            debug("User has enough money " + flipItem.book().name());
-            if (task.containsKey(flipItem.book())) continue;
-            debug("Not in task " + flipItem.book().name());
-            purse -= flipItem.totalCost();
+            Book book = flipItem.book();
+            debug("Checking Flipitem " + book.name());
+
+            if (task.containsKey(book)) continue;
+
+            if (hasActiveTaskForName(book.name())) {
+                debug(book.name() + " icin zaten baska bir seviyede aktif order var, bu turu atliyorum");
+                continue;
+            }
+
+            int fullAmount = book.getQtyAmount(book.level());
+            Integer topUpAmount = calculateTopUpAmount(book);
+            int orderAmount = topUpAmount != null ? topUpAmount : fullAmount;
+
+            double unitCost = flipItem.totalCost() / fullAmount;
+            double actualCost = unitCost * orderAmount;
+
+            if (purse < actualCost) continue;
+            debug("User has enough money " + book.name() + (topUpAmount != null ? " (TAMAMLAMA: " + orderAmount + " adet)" : ""));
+
+            purse -= actualCost;
             debug("new purse = " + purse);
-            task.put(flipItem.book(), new Task(flipItem.book().getQtyAmount(flipItem.book().level())));
+
+            if (topUpAmount != null) {
+                ChatUtils.clientMessage(book.name() + " icin envanterde eslenmemis parca bulundu, normal siparis yerine " + orderAmount + " adetlik tamamlama siparisi aciliyor.");
+            }
+
+            task.put(book, new Task(orderAmount));
             debug("new task created size:" + task.size());
         }
 
