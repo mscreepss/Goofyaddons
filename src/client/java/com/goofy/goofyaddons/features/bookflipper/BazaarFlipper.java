@@ -888,6 +888,13 @@ public String getStateName() {
         );
     }
 
+    private boolean hasActiveTaskForName(String name) {
+        for (Book b : task.keySet()) {
+            if (b.name().equals(name)) return true;
+        }
+        return false;
+    }
+
     /**
      * Envanterde (SADECE envanter, ender chest'e bakmaz) bu kitabın taban seviyesi
      * ile satış seviyesi arasında kalmış, eşi olmayan (tek/öksüz kalmış) parça var mı
@@ -938,6 +945,18 @@ public String getStateName() {
 
             int fullAmount = book.getQtyAmount(book.level());
             Integer topUpAmount = calculateTopUpAmount(book);
+
+            if (topUpAmount != null && hasActiveTaskForName(book.name())) {
+                // Öksüz parça bulundu AMA bu isimden (başka seviyede) zaten aktif bir iş
+                // sürüyor. Şimdi tamamlama siparişi açarsak, ikisi aynı öksüz parçaları
+                // aynı anda "kendi işi" sayıp çift sayabilir (tam bu yüzden bug oluşuyordu).
+                // O yüzden o iş bitene kadar bekliyoruz, öksüz parça kaybolmuyor, orada duruyor,
+                // öksüz parça YOKKEN bu kontrol hiç devreye girmiyor - normal paralel çalışma
+                // (Wisdom I + Wisdom II aynı anda gibi) hiç etkilenmiyor.
+                debug(book.name() + " icin oksuz parca var ama baska seviyede aktif is suruyor, once o bitsin");
+                continue;
+            }
+
             int orderAmount = topUpAmount != null ? topUpAmount : fullAmount;
 
             double unitCost = flipItem.totalCost() / fullAmount;
