@@ -1098,6 +1098,7 @@ public String getStateName() {
         private boolean shouldCheckSecondPage = false;
         private boolean earlyAction = false;
         private boolean earlyStore = false;
+        private boolean anvilRecheckAttempted = false;
 
         private boolean isShouldCheckSecondPage() {
             return shouldCheckSecondPage;
