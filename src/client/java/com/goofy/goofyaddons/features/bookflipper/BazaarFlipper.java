@@ -589,9 +589,20 @@ public class BazaarFlipper implements Feature {
                         if (!inventoryScanner.locate(bookToHandle.getRomanLevel(bookToHandle.sellLevel())).isEmpty()) {
                             debug("no pair to combine, sell-level copy confirmed in inventory, switching to SELL");
                             editStateBook(bookToHandle, BookState.SELL);
-                        } else {
+                        } else if (task.get(bookToHandle).inEnderChest > 0) {
                             debug("no pair to combine AND no sell-level copy found for " + bookToHandle.name() + ", sending back to ANVIL to recheck ender chest");
                             editStateBook(bookToHandle, BookState.ANVIL);
+                        } else {
+                            // ec=0, yani ender chest'te de kontrol edilecek bir şey kalmadı.
+                            // ANVIL'e geri göndermek burada sonsuz bir COMBINE<->ANVIL döngüsü
+                            // yaratıyordu (IDLE, ec=0 gördüğü için ANVIL ekranını hiç açmadan
+                            // direkt tekrar COMBINE'a atıyordu). Bunun yerine görevi tamamen
+                            // bırakıyoruz; kalan öksüz parçalar bir sonraki FETCHING turunda
+                            // "tamamlama siparişi" mekanizması tarafından otomatik yakalanıp
+                            // doğru miktarda yeni sipariş açılarak tamamlanacak.
+                            ChatUtils.clientMessage(bookToHandle.name() + " icin bu siparis tikandi (kontrol edilecek yer kalmadi), birakiliyor - kalan parcalar bir sonraki turda tamamlama siparisiyle toplanacak.");
+                            debug("dead end for " + bookToHandle.name() + ", removing task so leftover fragments get picked up by top-up logic next cycle");
+                            task.remove(bookToHandle);
                         }
                         return;
                     }
