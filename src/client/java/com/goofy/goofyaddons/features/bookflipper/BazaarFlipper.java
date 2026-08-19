@@ -73,6 +73,15 @@ public class BazaarFlipper implements Feature {
 
     private final Map<Book, Task> task = new LinkedHashMap<>();
 
+    // Öksüz parça tespit edilen ama mevcut siparişlerin (1to5/2to5) hâlâ bitmesini
+    // beklediğimiz isimler. Bu isimlerden hiçbir YENİ sipariş (temizlik siparişi
+    // hariç) açılmaz, ama mevcut çalışan siparişler kesilmeden bitene kadar sürer.
+    private final Set<String> pendingCleanupNames = new HashSet<>();
+    // Bir isim için şu an aktif olan temizlik siparişinin hangi Book olduğunu tutar.
+    // Bu, "temizlik siparişi bitti mi yoksa sadece normal bir sipariş mi bitti"yi
+    // ayırt etmek için gerekli.
+    private final Map<String, Book> activeCleanupTask = new HashMap<>();
+
     private void debug(String msg) {
         ChatUtils.debugMessage("[" + state + "] " + msg);
     }
@@ -121,6 +130,8 @@ public class BazaarFlipper implements Feature {
         ChatUtils.clientMessage("BazaarFlipper: Stopped");
 
         task.clear();
+        pendingCleanupNames.clear();
+        activeCleanupTask.clear();
         enabled = false;
         state = State.IDLE;
         lastState = null;
@@ -603,6 +614,12 @@ public class BazaarFlipper implements Feature {
                             ChatUtils.clientMessage(bookToHandle.name() + " icin bu siparis tikandi (kontrol edilecek yer kalmadi), birakiliyor - kalan parcalar bir sonraki turda tamamlama siparisiyle toplanacak.");
                             debug("dead end for " + bookToHandle.name() + ", removing task so leftover fragments get picked up by top-up logic next cycle");
                             task.remove(bookToHandle);
+                            Book cleanupBookAtDeadEnd = activeCleanupTask.get(bookToHandle.name());
+                            if (cleanupBookAtDeadEnd != null && cleanupBookAtDeadEnd.equals(bookToHandle)) {
+                                activeCleanupTask.remove(bookToHandle.name());
+                                pendingCleanupNames.remove(bookToHandle.name());
+                                debug(bookToHandle.name() + " icin temizlik siparisi de tikandi, bayraklar sifirlaniyor ki bir sonraki tur bastan hesaplasin");
+                            }
                         }
                         return;
                     }
@@ -728,7 +745,21 @@ public class BazaarFlipper implements Feature {
                         return;
                     }
                     removeDuplicateBooks(task);
-                    if (task.containsKey(bookList.getFirst())) task.remove(bookList.getFirst());
+                    if (task.containsKey(bookList.getFirst())) {
+                        Book soldBook = bookList.getFirst();
+                        task.remove(soldBook);
+                        // Az önce satılan kitap, o isim için çalışan temizlik siparişiyse
+                        // (öksüz parçayı tamamlayan sipariş), artık temizlik bitti demektir -
+                        // normal paralel çalışmaya (1to5 + 2to5) dönebilir. Sadece normal bir
+                        // sipariş bittiyse (temizlik hâlâ bekliyorsa) bu bayraklara dokunmuyoruz
+                        // ki bekleme devam etsin.
+                        Book cleanupBook = activeCleanupTask.get(soldBook.name());
+                        if (cleanupBook != null && cleanupBook.equals(soldBook)) {
+                            activeCleanupTask.remove(soldBook.name());
+                            pendingCleanupNames.remove(soldBook.name());
+                            debug(soldBook.name() + " icin temizlik siparisi basariyla tamamlandi, normal calismaya donuluyor");
+                        }
+                    }
                     bookList.removeFirst();
 
                 }
@@ -907,6 +938,22 @@ public String getStateName() {
     }
 
     /**
+     * Bu isim için config'te tanımlı 1. seviye (level()==1) kitabı bulur - tamamlama
+     * siparişi HER ZAMAN bu kitap üzerinden açılır, asla 2. seviyeden değil. Eğer
+     * 1. seviye tanımlı değilse (olmamalı ama garanti olsun diye), config'te bulunan
+     * en düşük seviyeli girişi döner.
+     */
+    private Book findBaseLevelEntry(String name) {
+        Book lowest = null;
+        for (Book b : GoofyConfig.INSTANCE.books) {
+            if (!b.name().equals(name)) continue;
+            if (b.level() == 1) return b;
+            if (lowest == null || b.level() < lowest.level()) lowest = b;
+        }
+        return lowest;
+    }
+
+    /**
      * Envanterde (SADECE envanter, ender chest'e bakmaz) bu kitabın taban seviyesi
      * ile satış seviyesi arasında kalmış, eşi olmayan (tek/öksüz kalmış) parça var mı
      * diye bakar. Her seviyedeki bir parça, TABAN seviyeye göre şu kadar "birim"
@@ -956,36 +1003,70 @@ public String getStateName() {
 
             if (task.containsKey(book)) continue;
 
+            // Bu isim daha önce "temizlik bekliyor" olarak işaretlenmediyse, öksüz
+            // parça var mı diye bak. Varsa işaretle - bu turdan itibaren bu isimden
+            // (temizlik siparişi hariç) yeni sipariş açılmayacak.
+            if (!pendingCleanupNames.contains(book.name())) {
+                Book baseEntryCheck = findBaseLevelEntry(book.name());
+                if (baseEntryCheck != null && calculateTopUpAmount(baseEntryCheck) != null) {
+                    pendingCleanupNames.add(book.name());
+                    debug(book.name() + " icin envanterde oksuz parca tespit edildi, temizlik moduna alindi - mevcut siparisler bitene kadar yeni siparis acilmayacak");
+                }
+            }
+
+            if (pendingCleanupNames.contains(book.name())) {
+                if (hasActiveTaskForName(book.name())) {
+                    // Bu ismin 1to5 ve/veya 2to5 siparişi hâlâ çalışıyor - onlar
+                    // kesilmeden bitsin, şimdi hiçbir şey açmıyoruz.
+                    debug(book.name() + " icin temizlik bekleniyor, mevcut siparis(ler) bitmeden yeni siparis acilmiyor");
+                    continue;
+                }
+
+                // Bu isimden artık hiçbir aktif sipariş yok - tamamlama siparişini
+                // aç, HER ZAMAN 1. seviyeden (asla 2. seviyeden).
+                Book baseEntry = findBaseLevelEntry(book.name());
+                if (baseEntry == null) baseEntry = book;
+
+                Integer topUpAmount = calculateTopUpAmount(baseEntry);
+                if (topUpAmount == null) {
+                    // Öksüz parça artık yok (bir şekilde çözülmüş), temizlik modundan
+                    // çık, bu turda normal akışa düşsün.
+                    pendingCleanupNames.remove(book.name());
+                } else {
+                    FlipItem baseFlipItem = null;
+                    for (FlipItem fi : flipItemsList) {
+                        if (fi.book().equals(baseEntry)) {
+                            baseFlipItem = fi;
+                            break;
+                        }
+                    }
+                    if (baseFlipItem == null) {
+                        debug(baseEntry.name() + " icin fiyat verisi henuz yok, tamamlama siparisi bir sonraki tura birakiliyor");
+                        continue;
+                    }
+
+                    double unitCost = baseFlipItem.totalCost() / baseEntry.getQtyAmount(baseEntry.level());
+                    double actualCost = unitCost * topUpAmount;
+
+                    if (purse < actualCost) continue;
+
+                    purse -= actualCost;
+                    debug("new purse = " + purse);
+                    ChatUtils.clientMessage(baseEntry.name() + " icin envanterde eslenmemis parca bulundu, " + topUpAmount + " adetlik tamamlama siparisi (1. seviyeden) aciliyor.");
+                    task.put(baseEntry, new Task(topUpAmount));
+                    activeCleanupTask.put(baseEntry.name(), baseEntry);
+                    debug("new cleanup task created for " + baseEntry.name());
+                    continue;
+                }
+            }
+
+            // Normal (temiz) durum - eskisi gibi tam sipariş.
             int fullAmount = book.getQtyAmount(book.level());
-            Integer topUpAmount = calculateTopUpAmount(book);
-
-            if (topUpAmount != null && hasActiveTaskForName(book.name())) {
-                // Öksüz parça bulundu AMA bu isimden (başka seviyede) zaten aktif bir iş
-                // sürüyor. Şimdi tamamlama siparişi açarsak, ikisi aynı öksüz parçaları
-                // aynı anda "kendi işi" sayıp çift sayabilir (tam bu yüzden bug oluşuyordu).
-                // O yüzden o iş bitene kadar bekliyoruz, öksüz parça kaybolmuyor, orada duruyor,
-                // öksüz parça YOKKEN bu kontrol hiç devreye girmiyor - normal paralel çalışma
-                // (Wisdom I + Wisdom II aynı anda gibi) hiç etkilenmiyor.
-                debug(book.name() + " icin oksuz parca var ama baska seviyede aktif is suruyor, once o bitsin");
-                continue;
-            }
-
-            int orderAmount = topUpAmount != null ? topUpAmount : fullAmount;
-
-            double unitCost = flipItem.totalCost() / fullAmount;
-            double actualCost = unitCost * orderAmount;
-
-            if (purse < actualCost) continue;
-            debug("User has enough money " + book.name() + (topUpAmount != null ? " (TAMAMLAMA: " + orderAmount + " adet)" : ""));
-
-            purse -= actualCost;
+            if (purse < flipItem.totalCost()) continue;
+            debug("User has enough money " + book.name());
+            purse -= flipItem.totalCost();
             debug("new purse = " + purse);
-
-            if (topUpAmount != null) {
-                ChatUtils.clientMessage(book.name() + " icin envanterde eslenmemis parca bulundu, normal siparis yerine " + orderAmount + " adetlik tamamlama siparisi aciliyor.");
-            }
-
-            task.put(book, new Task(orderAmount));
+            task.put(book, new Task(fullAmount));
             debug("new task created size:" + task.size());
         }
 
